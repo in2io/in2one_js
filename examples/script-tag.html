@@ -1,0 +1,49 @@
+<!doctype html>
+<!--
+  素の HTML だけで埋め込む例。
+  npm run build のあと、このファイルをブラウザで開くと ../dist/one.js を読む。
+  data-origin と data-token は自分の環境の値に差し替えること。
+-->
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>in2 One 埋め込みの例</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; padding: 0 1rem; }
+      .in2one-frame { border-radius: 12px; box-shadow: 0 1px 8px rgb(0 0 0 / 0.12); }
+      #log { font: 12px ui-monospace, monospace; white-space: pre-wrap; color: #4b5563; }
+    </style>
+  </head>
+  <body>
+    <h1>ご予約</h1>
+
+    <!-- 自動マウント。data-in2one が付いた要素は読み込み後に自動で立ち上がる -->
+    <div
+      id="booking"
+      data-in2one="booking"
+      data-token="pk_test_xxxxxxxx"
+      data-origin="http://localhost:13080"
+      data-locale="ja"
+      data-class="in2one-frame"
+      data-param-hako="9f2c1f7e-0000-0000-0000-000000000000"
+    ></div>
+
+    <p id="log"></p>
+
+    <script src="../dist/one.js"></script>
+    <script>
+      const log = (text) => (document.getElementById("log").textContent += text + "\n");
+      const embed = In2One.getEmbed("#booking");
+
+      log("SDK " + In2One.version);
+      embed.on("ready", () => log("ready"));
+      embed.on("resize", (height) => log("resize " + height));
+      embed.on("submit", (payload) => log("submit " + payload.uuid));
+      embed.on("error", (error) => log("error " + error.code + " " + error.message));
+
+      // 個人情報は URL に載せず、読み込み後に渡す。
+      embed.setPrefill({ email: "guest@example.com", name: "山田 太郎" });
+    </script>
+  </body>
+</html>

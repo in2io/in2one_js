@@ -1,0 +1,57 @@
+name: Release
+
+# v1.2.3 のタグで配信する。タグを打つ前に
+#   npm version <patch|minor|major> && npm run build && npm run hosting
+# を実行し、releases/ の差分をコミットしておくこと。
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # 埋め込み先のページから接続するアプリの origin。
+      IN2ONE_APP_ORIGIN: ${{ vars.IN2ONE_APP_ORIGIN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: タグと package.json のバージョンを突き合わせる
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "タグ v$tag と package.json の $pkg が一致しません" >&2
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run hosting
+
+      # releases/ に差分が出たら、配信物がコミットされていないということ。
+      # そのまま流すと「次のデプロイで消える版」を配ることになる。
+      - name: 配信物がコミット済みか確かめる
+        run: git diff --exit-code -- releases/
+
+      - name: Firebase Hosting へデプロイ
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          channelId: live
